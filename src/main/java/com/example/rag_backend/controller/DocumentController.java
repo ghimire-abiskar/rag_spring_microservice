@@ -18,7 +18,7 @@ public class DocumentController {
     private final RestTemplate restTemplate = new RestTemplate();
 
     // Defaults to localhost for local testing, can be overridden in Docker
-    private final String PYTHON_SERVICE_URL = System.getenv().getOrDefault("PYTHON_URL", "http://localhost:8000/process");
+    private final String PYTHON_SERVICE_URL = System.getenv().getOrDefault("PYTHON_URL", "http://13.49.138.96:8000/process");
 
     public DocumentController() throws IOException {
         Files.createDirectories(uploadDir);
