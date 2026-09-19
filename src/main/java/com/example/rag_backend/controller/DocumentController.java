@@ -37,20 +37,17 @@ public class DocumentController {
             Files.copy(file.getInputStream(), destinationPath, StandardCopyOption.REPLACE_EXISTING);
 
             // 2. Forward the actual file bytes to the Python microservice
-            org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
-            headers.setContentType(org.springframework.http.MediaType.MULTIPART_FORM_DATA);
-
             org.springframework.util.MultiValueMap<String, Object> body = new org.springframework.util.LinkedMultiValueMap<>();
             body.add("file", file.getResource());
 
+            // Do NOT set headers manually. Pass the body directly so Spring generates the boundary.
             org.springframework.http.HttpEntity<org.springframework.util.MultiValueMap<String, Object>> requestEntity =
-                    new org.springframework.http.HttpEntity<>(body, headers);
+                    new org.springframework.http.HttpEntity<>(body);
 
             try {
                 restTemplate.postForEntity(PYTHON_SERVICE_URL, requestEntity, String.class);
             } catch (Exception e) {
                 System.out.println("Python Engine Error: " + e.getMessage());
-                // Return a 500 error to the frontend so you know exactly why it failed!
                 return ResponseEntity.status(500).body(Map.of("message", "Python Engine Error: " + e.getMessage()));
             }
 
