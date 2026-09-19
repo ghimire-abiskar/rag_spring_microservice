@@ -1,6 +1,11 @@
 package com.example.rag_backend.controller;
 
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.util.LinkedMultiValueMap;
+import org.springframework.util.MultiValueMap;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.web.multipart.MultipartFile;
@@ -15,12 +20,13 @@ public class DocumentController {
 
     // Defaults to a relative "uploads" folder in your project directory when running locally
     private final Path uploadDir = Paths.get(System.getenv().getOrDefault("UPLOAD_DIR", "uploads"));
-    private final RestTemplate restTemplate = new RestTemplate();
+    private final RestTemplate restTemplate;
 
     // Defaults to localhost for local testing, can be overridden in Docker
     private final String PYTHON_SERVICE_URL = System.getenv().getOrDefault("PYTHON_URL", "http://13.49.138.96:8000/process");
 
-    public DocumentController() throws IOException {
+    public DocumentController(RestTemplate restTemplate) throws IOException {
+        this.restTemplate = restTemplate;
         Files.createDirectories(uploadDir);
     }
 
@@ -37,12 +43,14 @@ public class DocumentController {
             Files.copy(file.getInputStream(), destinationPath, StandardCopyOption.REPLACE_EXISTING);
 
             // 2. Forward the actual file bytes to the Python microservice
-            org.springframework.util.MultiValueMap<String, Object> body = new org.springframework.util.LinkedMultiValueMap<>();
+            MultiValueMap<String, Object> body = new LinkedMultiValueMap<>();
             body.add("file", file.getResource());
 
-            // Do NOT set headers manually. Pass the body directly so Spring generates the boundary.
-            org.springframework.http.HttpEntity<org.springframework.util.MultiValueMap<String, Object>> requestEntity =
-                    new org.springframework.http.HttpEntity<>(body);
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.MULTIPART_FORM_DATA);
+
+            HttpEntity<MultiValueMap<String, Object>> requestEntity =
+                    new HttpEntity<>(body, headers);
 
             try {
                 restTemplate.postForEntity(PYTHON_SERVICE_URL, requestEntity, String.class);
