@@ -1,4 +1,4 @@
-package com.example.rag_backend.config;
+package com.example.rag_backend.security;
 
 import com.example.rag_backend.security.JwtUtil;
 import jakarta.servlet.FilterChain;

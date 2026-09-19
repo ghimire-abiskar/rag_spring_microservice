@@ -13,9 +13,12 @@ import java.util.Map;
 @RequestMapping("/api/documents")
 public class DocumentController {
 
-    private final Path uploadDir = Paths.get("/app/uploads");
+    // Defaults to a relative "uploads" folder in your project directory when running locally
+    private final Path uploadDir = Paths.get(System.getenv().getOrDefault("UPLOAD_DIR", "uploads"));
     private final RestTemplate restTemplate = new RestTemplate();
-    private final String PYTHON_SERVICE_URL = "http://rag-python:8000/process";
+
+    // Defaults to localhost for local testing, can be overridden in Docker
+    private final String PYTHON_SERVICE_URL = System.getenv().getOrDefault("PYTHON_URL", "http://localhost:8000/process");
 
     public DocumentController() throws IOException {
         Files.createDirectories(uploadDir);
@@ -31,26 +34,26 @@ public class DocumentController {
             String originalFilename = Paths.get(file.getOriginalFilename()).getFileName().toString();
             Path destinationPath = uploadDir.resolve(originalFilename);
 
-            // Save file to shared Docker volume
             Files.copy(file.getInputStream(), destinationPath, StandardCopyOption.REPLACE_EXISTING);
 
-            // Notify Python service to extract text/PAN and rebuild vector DB
             Map<String, String> pythonPayload = Map.of(
                     "filePath", destinationPath.toString(),
                     "fileName", originalFilename
             );
 
-            // Forward to Python container
-            restTemplate.postForObject(PYTHON_SERVICE_URL, pythonPayload, Map.class);
+            // Optional: Catch RestClientException locally since Python isn't running yet
+            try {
+                restTemplate.postForObject(PYTHON_SERVICE_URL, pythonPayload, Map.class);
+            } catch (Exception e) {
+                System.out.println("Warning: Could not reach Python service. File saved locally to " + destinationPath);
+            }
 
             return ResponseEntity.ok(Map.of(
-                    "message", "File '" + originalFilename + "' saved and ingestion triggered successfully."
+                    "message", "File '" + originalFilename + "' saved successfully."
             ));
 
         } catch (IOException e) {
             return ResponseEntity.internalServerError().body(Map.of("message", "Disk write failed: " + e.getMessage()));
-        } catch (Exception e) {
-            return ResponseEntity.internalServerError().body(Map.of("message", "Ingestion trigger failed: " + e.getMessage()));
         }
     }
 }
