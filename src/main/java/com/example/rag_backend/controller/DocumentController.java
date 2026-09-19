@@ -31,26 +31,30 @@ public class DocumentController {
         }
 
         try {
+            // 1. Save locally to Spring
             String originalFilename = Paths.get(file.getOriginalFilename()).getFileName().toString();
             Path destinationPath = uploadDir.resolve(originalFilename);
-
             Files.copy(file.getInputStream(), destinationPath, StandardCopyOption.REPLACE_EXISTING);
 
-            Map<String, String> pythonPayload = Map.of(
-                    "filePath", destinationPath.toString(),
-                    "fileName", originalFilename
-            );
+            // 2. Forward the actual file bytes to the Python microservice
+            org.springframework.http.HttpHeaders headers = new org.springframework.http.HttpHeaders();
+            headers.setContentType(org.springframework.http.MediaType.MULTIPART_FORM_DATA);
 
-            // Optional: Catch RestClientException locally since Python isn't running yet
+            org.springframework.util.MultiValueMap<String, Object> body = new org.springframework.util.LinkedMultiValueMap<>();
+            body.add("file", file.getResource());
+
+            org.springframework.http.HttpEntity<org.springframework.util.MultiValueMap<String, Object>> requestEntity =
+                    new org.springframework.http.HttpEntity<>(body, headers);
+
             try {
-                restTemplate.postForObject(PYTHON_SERVICE_URL, pythonPayload, Map.class);
+                restTemplate.postForEntity(PYTHON_SERVICE_URL, requestEntity, String.class);
             } catch (Exception e) {
-                System.out.println("Warning: Could not reach Python service. File saved locally to " + destinationPath);
+                System.out.println("Python Engine Error: " + e.getMessage());
+                // Return a 500 error to the frontend so you know exactly why it failed!
+                return ResponseEntity.status(500).body(Map.of("message", "Python Engine Error: " + e.getMessage()));
             }
 
-            return ResponseEntity.ok(Map.of(
-                    "message", "File '" + originalFilename + "' saved successfully."
-            ));
+            return ResponseEntity.ok(Map.of("message", "File '" + originalFilename + "' saved and ingested successfully."));
 
         } catch (IOException e) {
             return ResponseEntity.internalServerError().body(Map.of("message", "Disk write failed: " + e.getMessage()));
