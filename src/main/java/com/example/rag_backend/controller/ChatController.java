@@ -6,6 +6,9 @@ import com.example.rag_backend.service.RagService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.security.Principal;
+import java.util.Collections;
+
 @RestController
 @RequestMapping("/api")
 public class ChatController {
@@ -22,14 +25,30 @@ public class ChatController {
     }
 
     @PostMapping("/chat")
-    public ResponseEntity<ChatResponse> askQuestion(@RequestBody ChatRequest request) {
+    public ResponseEntity<ChatResponse> askQuestion(
+            @RequestBody ChatRequest request,
+            Principal principal) { // 1. Inject Principal
+
         if (request.getQuestion() == null || request.getQuestion().trim().isEmpty()) {
             return ResponseEntity.badRequest().body(
-                    new ChatResponse("Question cannot be empty.", java.util.Collections.emptyList())
+                    new ChatResponse("Question cannot be empty.", Collections.emptyList())
             );
         }
 
-        ChatResponse response = ragService.processQuery(request);
-        return ResponseEntity.ok(response);
+        try {
+            // 2. Extract the verified user ID from the JWT
+            String userId = principal.getName();
+
+            // 3. Pass the userId to the service layer
+            ChatResponse response = ragService.askQuestion(request, userId);
+
+            return ResponseEntity.ok(response);
+
+        } catch (Exception e) {
+            System.out.println("Python Engine Error: " + e.getMessage());
+            return ResponseEntity.status(500).body(
+                    new ChatResponse("Python Engine Error: " + e.getMessage(), Collections.emptyList())
+            );
+        }
     }
 }
