@@ -50,5 +50,5 @@ jobs:
               "docker pull ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest",
               "docker stop ${{ env.CONTAINER_NAME }} || true",
               "docker rm ${{ env.CONTAINER_NAME }} || true",
-              "docker run -d --name ${{ env.CONTAINER_NAME }} -p 8080:8080 ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest"
+              "docker run -d --name ${{ env.CONTAINER_NAME }} -p 8080:8080 -e SUPABASE_DB_PASSWORD='\''${{ secrets.SUBA_BASE_DB_PASSWORD }}'\'' ${{ steps.login-ecr.outputs.registry }}/${{ env.ECR_REPOSITORY }}:latest"
             ]'
