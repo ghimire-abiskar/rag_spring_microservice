@@ -26,9 +26,9 @@ public class RagService {
     @Autowired
     private RestTemplate restTemplate;
 
-    @Value("${python.service.url:http://localhost:8000}")
+    @Value("${python.rag.service.url:http://localhost:8000}")
     private String pythonServiceUrl;
-
+    
     public String processDocument(MultipartFile file, String userId) throws IOException {
         byte[] fileBytes = file.getBytes();
         String originalFilename = Paths.get(
